@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Colors + Runner + Draughts (Checkers)</title>
+<style>
+  :root{--ui-bg:#f5f7fb;--card:#fff;--accent:#2563eb}
+  body{font-family:Inter,system-ui,Segoe UI,Arial;background:var(--ui-bg);margin:0;color:#111}
+  header{display:flex;align-items:center;gap:12px;padding:14px 18px;background:linear-gradient(90deg,#fff,#f0f4ff);box-shadow:0 1px 0 rgba(0,0,0,0.04)}
+  h1{font-size:18px;margin:0}
+  .container{display:grid;grid-template-columns:360px 1fr;gap:18px;padding:18px}
+  .card{background:var(--card);padding:12px;border-radius:10px;box-shadow:0 6px 20px rgba(15,23,42,0.05)}
+  .palette{height:300px;overflow:auto;padding:8px;display:flex;flex-wrap:wrap;gap:6px}
+  .color-swatch{width:48px;height:36px;border-radius:6px;cursor:pointer;box-shadow:inset 0 -2px 0 rgba(0,0,0,0.06)}
+  .preview{height:120px;border-radius:8px;margin-top:8px;display:flex;align-items:center;justify-content:center;font-weight:600}
+  .controls{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+  .btn{padding:8px 10px;border-radius:8px;border:0;background:var(--accent);color:#fff;cursor:pointer}
+  main{display:flex;flex-direction:column;gap:12px}
+  .games{display:grid;grid-template-columns:1fr 520px;gap:12px}
+  canvas{display:block;border-radius:8px;background:#e8eef9}
+  .board-wrap{display:flex;flex-direction:column;gap:8px}
+  .mode-select{display:flex;gap:8px}
+  .info{font-size:13px;color:#444}
+  footer{padding:12px;text-align:center;color:#666;font-size:13px}
+  @media(max-width:980px){.container{grid-template-columns:1fr;}.games{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header>
+  <h1>Color Picker · Runner Game · Draughts (Checkers)</h1>
+</header>
+<div class="container">
+  <div>
+    <div class="card">
+      <h3>Choose a color (click swatch or enter hex)</h3>
+      <div class="palette" id="palette"></div>
+      <div style="margin-top:8px">
+        <input id="hex" placeholder="#RRGGBB or name" style="padding:8px;border-radius:6px;border:1px solid #d0d7e8;width:70%" />
+        <button class="btn" id="applyHex">Apply</button>
+      </div>
+      <div class="preview card" id="preview" style="margin-top:12px;height:90px"></div>
+      <div style="margin-top:10px" class="info">The selected color will change the page background and influence the games' accent.</div>
+    </div>
+    <div class="card" style="margin-top:12px">
+      <h3>Draughts (Checkers)</h3>
+      <div class="mode-select">
+        <label><input type="radio" name="mode" value="2p" checked> 2 Player</label>
+        <label><input type="radio" name="mode" value="ai"> Vs Computer</label>
+        <button class="btn" id="resetBoard">Reset Board</button>
+      </div>
+      <div class="board-wrap">
+        <canvas id="board" width="520" height="520" style="width:100%;height:auto"></canvas>
+        <div class="info">Click a piece to select and then click a square to move. Red moves first. AI uses a simple greedy/capture-first logic.</div>
+      </div>
+    </div>
+  </div>
+
+  <main>
+    <div class="card">
+      <h3>Endless Runner Game</h3>
+      <div style="display:flex;gap:12px;align-items:center;margin-bottom:8px">
+        <button class="btn" id="startRunner">Start</button>
+        <button class="btn" id="pauseRunner">Pause</button>
+        <button class="btn" id="resetRunner">Reset</button>
+        <div class="info">Controls: Space to jump. Avoid obstacles. Score increases over time.</div>
+      </div>
+      <canvas id="runner" width="900" height="180" style="width:100%;height:auto"></canvas>
+    </div>
+
+    <div class="card">
+      <h3>Notes & Instructions</h3>
+      <ul>
+        <li>Pick any color from the palette or type a hex (e.g., <code>#ff8800</code>) and press Apply — the site background and game accent will update.</li>
+        <li>Draughts: standard 8x8 board. Kings are supported. AI is intentionally lightweight to run in the browser.</li>
+        <li>Runner: simple physics, collision detection. Good for learning and modifying.</li>
+      </ul>
+    </div>
+  </main>
+</div>
+<footer>Made for learning — modify freely. </footer>
+
+<script>
+/* ---------- Color Palette ---------- */
+const cssColors = [
+  "aliceblue","antiquewhite","aqua","aquamarine","azure","beige","bisque","black","blanchedalmond","blue","blueviolet","brown","burlywood","cadetblue","chartreuse","chocolate","coral","cornflowerblue","cornsilk","crimson","cyan","darkblue","darkcyan","darkgoldenrod","darkgray","darkgreen","darkkhaki","darkmagenta","darkolivegreen","darkorange","darkorchid","darkred","darksalmon","darkseagreen","darkslateblue","darkslategray","darkturquoise","darkviolet","deeppink","deepskyblue","dimgray","dodgerblue","firebrick","floralwhite","forestgreen","fuchsia","gainsboro","ghostwhite","gold","goldenrod","gray","green","greenyellow","honeydew","hotpink","indianred","indigo","ivory","khaki","lavender","lavenderblush","lawngreen","lemonchiffon","lightblue","lightcoral","lightcyan","lightgoldenrodyellow","lightgreen","lightgrey","lightpink","lightsalmon","lightseagreen","lightskyblue","lightslategray","lightsteelblue","lightyellow","lime","limegreen","linen","magenta","maroon","mediumaquamarine","mediumblue","mediumorchid","mediumpurple","mediumseagreen","mediumslateblue","mediumspringgreen","mediumturquoise","mediumvioletred","midnightblue","mintcream","mistyrose","moccasin","navajowhite","navy","oldlace","olive","olivedrab","orange","orangered","orchid","palegoldenrod","palegreen","paleturquoise","palevioletred","papayawhip","peachpuff","peru","pink","plum","powderblue","purple","red","rosybrown","royalblue","saddlebrown","salmon","sandybrown","seagreen","seashell","sienna","silver","skyblue","slateblue","slategray","snow","springgreen","steelblue","tan","teal","thistle","tomato","turquoise","violet","wheat","white","whitesmoke","yellow","yellowgreen"
+];
+const palette = document.getElementById('palette');
+const preview = document.getElementById('preview');
+const hexInput = document.getElementById('hex');
+let selectedColor = '#2563eb';
+function createSwatches(){
+  cssColors.forEach(c=>{
+    const d=document.createElement('div');d.className='color-swatch';d.style.background=c;d.title=c;d.addEventListener('click',()=>applyColor(c));palette.appendChild(d);
+  });
+}
+function applyColor(c){
+  selectedColor=c;document.documentElement.style.setProperty('--accent',c);document.body.style.background=cameo(c);preview.style.background=c;preview.textContent=c;document.querySelectorAll('canvas').forEach(cv=>{cv.style.outline='6px solid '+lighten(c,0.88)})
+}
+function cameo(c){try{return chroma_is_valid(c)?c:'#f5f7fb'}catch(e){return c}}
+function chroma_is_valid(c){const s=new Option().style;s.color='';s.color=c;return s.color!==''}
+function lighten(hex,amt){try{const c=document.createElement('div');c.style.color=hex;document.body.appendChild(c);const rgb=getComputedStyle(c).color;document.body.removeChild(c);const m=rgb.match(/(\d+),\s*(\d+),\s*(\d+)/);if(!m) return hex;let [r,g,b]=[+m[1],+m[2],+m[3]];r=Math.min(255,Math.round(r + (255-r)*(1-amt)));g=Math.min(255,Math.round(g + (255-g)*(1-amt)));b=Math.min(255,Math.round(b + (255-b)*(1-amt)));return `rgb(${r},${g},${b})`}catch(e){return hex}}
+createSwatches();applyColor(selectedColor);
+document.getElementById('applyHex').addEventListener('click',()=>{
+  const v=hexInput.value.trim();if(!v) return;applyColor(v);
+});
+
+/* ---------- Runner Game ---------- */
+const rCanvas=document.getElementById('runner');const rc=rCanvas.getContext('2d');let runnerAnim=null;let running=false;let score=0;let speed=3;let player={x:60,y:0,w:28,h:40,vy:0,ground:130,jump:-10};let obstacles=[];let frame=0;
+function resetRunner(){obstacles=[];score=0;frame=0;player.y=player.ground;player.vy=0;speed=3;drawRunner();}
+function spawnObstacle(){const h=20+Math.random()*40;obstacles.push({x:rCanvas.width+20,y:player.ground+player.h-h,w:20,h:h});}
+function updateRunner(){frame++;rc.clearRect(0,0,rCanvas.width,rCanvas.height);
+  // background
+  rc.fillStyle=lighten(selectedColor,0.93);rc.fillRect(0,0,rCanvas.width,rCanvas.height);
+  // ground
+  rc.fillStyle=selectedColor;rc.fillRect(0,player.ground+player.h,rCanvas.width, rCanvas.height-(player.ground+player.h));
+  // player physics
+  player.vy+=0.7;player.y+=player.vy; if(player.y>player.ground) {player.y=player.ground;player.vy=0}
+  // draw player
+  rc.fillStyle= '#ffffff';rc.fillRect(player.x,player.y,player.w,player.h);
+  rc.strokeStyle=selectedColor;rc.lineWidth=3;rc.strokeRect(player.x,player.y,player.w,player.h);
+  // obstacles
+  if(frame%90===0) spawnObstacle();
+  for(let i=0;i<obstacles.length;i++){obstacles[i].x-=speed;rc.fillStyle='#333';rc.fillRect(obstacles[i].x,obstacles[i].y,obstacles[i].w,obstacles[i].h);
+    // collision
+    if(collide(player,obstacles[i])){pauseRunner();rc.fillStyle='rgba(0,0,0,0.6)';rc.fillRect(0,0,rCanvas.width,rCanvas.height);rc.fillStyle='#fff';rc.font='20px sans-serif';rc.fillText('Game Over — Score: '+Math.floor(score),rCanvas.width/2-90,rCanvas.height/2);return}
+  }
+  // score & speed
+  score+=0.05; if(frame%300===0) speed+=0.5;
+  rc.fillStyle='#111';rc.font='14px sans-serif';rc.fillText('Score: '+Math.floor(score),rCanvas.width-120,24);
+  runnerAnim=requestAnimationFrame(updateRunner);
+}
+function drawRunner(){rc.clearRect(0,0,rCanvas.width,rCanvas.height);rc.fillStyle=lighten(selectedColor,0.93);rc.fillRect(0,0,rCanvas.width,rCanvas.height);}
+function collide(a,b){return !(a.x+a.w < b.x || a.x > b.x+b.w || a.y+a.h < b.y || a.y > b.y+b.h)}
+function startRunner(){if(running) return;running=true;runnerAnim=requestAnimationFrame(updateRunner)}
+function pauseRunner(){running=false; if(runnerAnim) cancelAnimationFrame(runnerAnim)}
+function jump(){if(player.y>=player.ground-1){player.vy=player.jump}}
+document.getElementById('startRunner').addEventListener('click',startRunner);
+document.getElementById('pauseRunner').addEventListener('click',pauseRunner);
+document.getElementById('resetRunner').addEventListener('click',()=>{resetRunner();startRunner();});
+document.addEventListener('keydown',e=>{if(e.code==='Space'){e.preventDefault();jump()}});
+resetRunner();
+
+/* ---------- Draughts (Checkers) ---------- */
+const boardCanvas=document.getElementById('board');const bc=boardCanvas.getContext('2d');const size=8;let cell=boardCanvas.width/size;let board=[];let turn='r';let selected=null;let mode='2p';
+function initBoard(){board=[];for(let r=0;r<size;r++){board[r]=[];for(let c=0;c<size;c++){board[r][c]=null;}}
+  for(let r=0;r<3;r++){for(let c=0;c<size;c++){if((r+c)%2===1)board[r][c]={color:'b',king:false}}}
+  for(let r=5;r<8;r++){for(let c=0;c<size;c++){if((r+c)%2===1)board[r][c]={color:'r',king:false}}}
+  turn='r';selected=null;drawBoard();}
+function drawBoard(){cell=boardCanvas.width/size;bc.clearRect(0,0,boardCanvas.width,boardCanvas.height);
+  for(let r=0;r<size;r++){for(let c=0;c<size;c++){const x=c*cell,y=r*cell;bc.fillStyle=((r+c)%2===0)?'#f0d9b5':'#b58863';bc.fillRect(x,y,cell,cell);
+      const p=board[r][c];if(p){drawPiece(x,y,cell,p.color,p.king)}
+      if(selected && selected.r===r && selected.c===c){bc.strokeStyle='lime';bc.lineWidth=3;bc.strokeRect(x+4,y+4,cell-8,cell-8)}
+    }}
+}
+function drawPiece(x,y,s,color,king){bc.beginPath();bc.fillStyle=(color==='r')?selectedColor:'#222';bc.arc(x+cell/2,y+cell/2,cell*0.34,0,Math.PI*2);bc.fill();bc.lineWidth=2;bc.strokeStyle='#fff';bc.stroke();if(king){bc.fillStyle='gold';bc.font=(cell*0.3)+'px sans-serif';bc.textAlign='center';bc.textBaseline='middle';bc.fillText('K',x+cell/2,y+cell/2)} }
+function posFromEvent(e){const rect=boardCanvas.getBoundingClientRect();const x=(e.clientX-rect.left)*(boardCanvas.width/rect.width);const y=(e.clientY-rect.top)*(boardCanvas.height/rect.height);return {r:Math.floor(y/cell),c:Math.floor(x/cell)} }
+function legalMoves(r,c){const p=board[r][c];if(!p) return [];const dirs = p.king?[[1,1],[1,-1],[-1,1],[-1,-1]]:(p.color==='r'?[[ -1, -1],[-1,1]]:[[1,1],[1,-1]]);
+  let moves=[]; // non-captures
+  dirs.forEach(d=>{const rr=r+d[0],cc=c+d[1]; if(inb(rr,cc) && !board[rr][cc]) moves.push({r:rr,c:cc,capture:false})});
+  // captures
+  dirs.forEach(d=>{const rr=r+d[0],cc=c+d[1],rr2=r+2*d[0],cc2=c+2*d[1]; if(inb(rr2,cc2) && board[rr] && board[rr][cc] && board[rr][cc].color!==p.color && !board[rr2][cc2]) moves.push({r:rr2,c:cc2,capture:{r:rr,c:cc}})});
+  return moves;
+}
+function inb(r,c){return r>=0&&r<size&&c>=0&&c<size}
+boardCanvas.addEventListener('click',e=>{const p=posFromEvent(e);if(!inb(p.r,p.c)) return;const piece=board[p.r][p.c];
+  if(selected){const moves=legalMoves(selected.r,selected.c);const target=moves.find(m=>m.r===p.r&&m.c===p.c);if(target){makeMove(selected, target);selected=null;drawBoard(); if(mode==='ai' && turn==='b'){setTimeout(aiMove,300)} return;} }
+  if(piece && piece.color===turn){selected={r:p.r,c:p.c};drawBoard()} });
+function makeMove(from,to){const p=board[from.r][from.c];board[to.r][to.c]=p;board[from.r][from.c]=null; if(to.capture){board[to.capture.r][to.capture.c]=null; // check multi-capture
+    const further=legalMoves(to.r,to.c).filter(m=>m.capture); if(further.length>0){selected={r:to.r,c:to.c};drawBoard(); return;} }
+  // kinging
+  if((p.color==='r' && to.r===0) || (p.color==='b' && to.r===size-1)) p.king=true; turn=(turn==='r')?'b':'r'; selected=null; drawBoard();}
+function anyMovesFor(color){for(let r=0;r<size;r++)for(let c=0;c<size;c++){const p=board[r][c];if(p && p.color===color && legalMoves(r,c).length>0) return true;}return false}
+function aiMove(){ // simple greedy: take any capture, else random move
+  if(!anyMovesFor('b')){alert('Red wins!');return}
+  // find captures first
+  let captures=[];let moves=[];
+  for(let r=0;r<size;r++)for(let c=0;c<size;c++){const p=board[r][c];if(p && p.color==='b'){const ms=legalMoves(r,c);ms.forEach(m=>{if(m.capture)captures.push({from:{r,c},to:m});else moves.push({from:{r,c},to:m})})}}
+  const pick = captures.length?captures[Math.floor(Math.random()*captures.length)]:moves.length?moves[Math.floor(Math.random()*moves.length)]:null; if(!pick){alert('Red wins!');return}
+  makeMove(pick.from,pick.to);
+}
+// UI bindings
+Array.from(document.getElementsByName('mode')).forEach(r=>r.addEventListener('change',e=>{mode=e.target.value;initBoard();if(mode==='ai' && turn==='b') aiMove();}));
+document.getElementById('resetBoard').addEventListener('click',()=>initBoard());
+initBoard();
+
+/* Resize handling to keep board crisp */
+function resizeCanvas(){const w=Math.min(window.innerWidth*0.6,520);boardCanvas.width= w;boardCanvas.height=w;cell=boardCanvas.width/size;drawBoard();}
+window.addEventListener('resize',resizeCanvas);resizeCanvas();
+
+</script>
+</body>
+</html>
+
